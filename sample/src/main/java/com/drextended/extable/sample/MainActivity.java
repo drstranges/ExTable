@@ -24,7 +24,7 @@ public class MainActivity extends AppCompatActivity {
         ExTable exTable = new ExTable(this);
         exTable.setConfig(
                 new TableConfig.Builder()
-                        .setColCount(6)
+                        .setColCount(106)
                         .setRowCount(6)
                         .setFixedColCount(1)
                         .setFixedRowCount(2)
@@ -61,6 +61,7 @@ public class MainActivity extends AppCompatActivity {
         ceilData.addCeil(4,1, new ExTable.ExTableAdapter.CeilData.Ceil(1, "12", Color.CYAN));
         exTable.setCeilData(ceilData);
 
-        container.addView(exTable, new LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT));
+        exTable.setBackgroundColor(Color.MAGENTA);
+        container.addView(exTable, new LinearLayout.LayoutParams(ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT));
     }
 }

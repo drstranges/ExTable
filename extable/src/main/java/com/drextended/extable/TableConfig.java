@@ -42,6 +42,10 @@ public final class TableConfig {
         return mSpans.get(Utils.buildIndex(col, row), CeilSpan.DEFAULT);
     }
 
+    public CeilSpan getSpanSize(int index) {
+        return mSpans.get(index, CeilSpan.DEFAULT);
+    }
+
     public ExTable.ExTableAdapter.ItemDelegate getItemDelegat(final int type) {
         return mCeilViewDelegates.get(type, ExTable.ExTableAdapter.ItemDelegate.DEFAULT);
     }
