@@ -24,12 +24,12 @@ public class MainActivity extends AppCompatActivity {
         ExTable exTable = new ExTable(this);
         exTable.setConfig(
                 new TableConfig.Builder()
-                        .setColCount(106)
-                        .setRowCount(6)
+                        .setColCount(36)
+                        .setRowCount(36)
                         .setFixedColCount(1)
                         .setFixedRowCount(2)
-                        .setSpan(1, 0, 2, 1)
-                        .setSpan(0, 3, 2, 2)
+//                        .setSpan(1, 0, 2, 1)
+//                        .setSpan(0, 3, 2, 2)
                         .addCeilViewDelegate(1, new ExTable.ExTableAdapter.ItemDelegate() {
                             @Override
                             public ExTable.CeilViewHolder onCreateViewHolder(final ViewGroup parent) {
@@ -61,7 +61,7 @@ public class MainActivity extends AppCompatActivity {
         ceilData.addCeil(4,1, new ExTable.ExTableAdapter.CeilData.Ceil(1, "12", Color.CYAN));
         exTable.setCeilData(ceilData);
 
-        exTable.setBackgroundColor(Color.MAGENTA);
-        container.addView(exTable, new LinearLayout.LayoutParams(ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT));
+//        exTable.setBackgroundColor(Color.MAGENTA);
+        container.addView(exTable, new LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT));
     }
 }

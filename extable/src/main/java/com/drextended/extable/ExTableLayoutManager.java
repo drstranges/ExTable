@@ -1,6 +1,7 @@
 package com.drextended.extable;
 
 import android.content.Context;
+import android.graphics.Rect;
 import android.os.Parcelable;
 import android.support.v7.widget.RecyclerView;
 import android.util.AttributeSet;
@@ -26,6 +27,8 @@ public class ExTableLayoutManager extends RecyclerView.LayoutManager {
     private boolean isCeilInfoDirty = true;
     private int mContentWidth;
     private int mContentHeight;
+    private int mFixedContentWidth;
+    private int mFixedContentHeight;
     private int mScrollX = 0;
     private int mScrollY = 0;
 
@@ -150,12 +153,50 @@ public class ExTableLayoutManager extends RecyclerView.LayoutManager {
         detachAndScrapAttachedViews(recycler);
         fillCeilInfo(recycler);
         final List<CeilInfo> ceilInfos = getCeilForLayout();
+        final int fixedColCount = mConfig.fixedColCount;
+        final int fixedRowCount = mConfig.fixedRowCount;
+        int left, top, right, bottom;
         for (final CeilInfo ceilInfo : ceilInfos) {
             View view = recycler.getViewForPosition(ceilInfo.index);
             addView(view);
-            measureChildWithMargins(view, 0, 0);
-            view.layout(ceilInfo.left - mScrollX, ceilInfo.top - mScrollY,
-                    ceilInfo.right - mScrollX, ceilInfo.bottom - mScrollY);
+//            measureChildWithMargins(view, 0, 0);
+            final boolean horizontalScrollable = ceilInfo.col >= fixedColCount;
+            if (horizontalScrollable) {
+                left = ceilInfo.left - mScrollX;
+                right = ceilInfo.right - mScrollX;
+            } else {
+                left = ceilInfo.left;
+                right = ceilInfo.right;
+            }
+            final boolean verticalScrollable = ceilInfo.row >= fixedRowCount;
+            if (verticalScrollable) {
+                top = ceilInfo.top - mScrollY;
+                bottom = ceilInfo.bottom - mScrollY;
+            } else {
+                top = ceilInfo.top;
+                bottom = ceilInfo.bottom;
+            }
+            setClipBounds(view, horizontalScrollable, verticalScrollable, left, top, right, bottom);
+            view.layout(left, top, right, bottom);
+        }
+    }
+
+    private void setClipBounds(final View view, final boolean horizontalScrollable, final boolean verticalScrollable,
+                               final int left, final int top, final int right, final int bottom) {
+        int clipWidth = 0;
+        int clipHeight = 0;
+        if (horizontalScrollable && left < mFixedContentWidth) {
+            clipWidth = mFixedContentWidth - left;
+        }
+        if (verticalScrollable && top < mFixedContentHeight) {
+            clipHeight = mFixedContentHeight - top;
+        }
+        if (clipWidth == 0 && clipHeight == 0) {
+            view.setClipBounds(null);
+        } else if (clipWidth > right || clipHeight > bottom) {
+            view.setClipBounds(new Rect(0,0,0,0));
+        } else {
+            view.setClipBounds(new Rect(clipWidth, clipHeight, right - left, bottom - top));
         }
     }
 
@@ -164,8 +205,8 @@ public class ExTableLayoutManager extends RecyclerView.LayoutManager {
         final int height = getHeight();
         final List<CeilInfo> ceilForLayout = new ArrayList<>(mCeilInfos.size());
         for (final CeilInfo ceilInfo : mCeilInfos) {
-            if (ceilInfo.right - mScrollX > -100 && ceilInfo.left - mScrollX < width + 100
-                    && ceilInfo.bottom - mScrollY > -100 && ceilInfo.top - mScrollY < height + 100) {
+            if ((ceilInfo.col <= mConfig.fixedColCount || (ceilInfo.right - mScrollX > -200 && ceilInfo.left - mScrollX < width + 200))
+                    && (ceilInfo.row <= mConfig.fixedRowCount || (ceilInfo.bottom - mScrollY > -200 && ceilInfo.top - mScrollY < height + 200))) {
                 ceilForLayout.add(ceilInfo);
             }
         }
@@ -254,10 +295,18 @@ public class ExTableLayoutManager extends RecyclerView.LayoutManager {
                 }
                 ceilInfo.setLayoutPosition(left, top, right, bottom);
                 if (right > contentWidth) contentWidth = right;
-                if (right > bottom) contentHeight = bottom;
+                if (bottom > contentHeight) contentHeight = bottom;
             }
             mContentWidth = contentWidth + getPaddingRight() ;
             mContentHeight = contentHeight + getPaddingBottom();
+            mFixedContentWidth = 0;
+            mFixedContentHeight = 0;
+            for (int col = 0; col < mConfig.fixedColCount; col++) {
+                mFixedContentWidth += mMaxColWidths.get(col) + 3;
+            }
+            for (int row = 0; row < mConfig.fixedRowCount; row++) {
+                mFixedContentHeight += mMaxRowHeights.get(row) + 3;
+            }
         }
     }
 

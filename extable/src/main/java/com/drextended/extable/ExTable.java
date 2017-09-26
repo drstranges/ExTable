@@ -151,7 +151,7 @@ public class ExTable extends LinearLayout {
 
             public static class Ceil {
                 public static final int TYPE_DEFAULT = 0;
-                public static final Ceil DEFAULT = new Ceil(TYPE_DEFAULT, "-*-", Color.GRAY);
+                public static final Ceil DEFAULT = new Ceil(TYPE_DEFAULT, null, Color.GRAY);
 
                 public final Object value;
                 public final int type;
