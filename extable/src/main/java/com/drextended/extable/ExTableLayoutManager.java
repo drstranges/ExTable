@@ -5,6 +5,7 @@ import android.graphics.Rect;
 import android.os.Parcelable;
 import android.support.v7.widget.RecyclerView;
 import android.util.AttributeSet;
+import android.util.Log;
 import android.util.SparseIntArray;
 import android.view.View;
 import android.view.ViewGroup;
@@ -31,6 +32,7 @@ public class ExTableLayoutManager extends RecyclerView.LayoutManager {
     private int mFixedContentHeight;
     private int mScrollX = 0;
     private int mScrollY = 0;
+    private int mDividerSize = 3;
 
 
     /**
@@ -112,6 +114,8 @@ public class ExTableLayoutManager extends RecyclerView.LayoutManager {
 
     @Override
     public void onMeasure(final RecyclerView.Recycler recycler, final RecyclerView.State state, int widthSpec, int heightSpec) {
+        long time = System.currentTimeMillis();
+        Log.d("LOG_TAG", "onMeasure");
         int widthSize;
         int heightSize;
         final int widthSpecMode = View.MeasureSpec.getMode(widthSpec);
@@ -129,9 +133,10 @@ public class ExTableLayoutManager extends RecyclerView.LayoutManager {
             heightSize = View.MeasureSpec.getSize(heightSpec);
         }
         setMeasuredDimension(widthSize, heightSize);
+        Log.d("LOG_TAG", "onMeasure === end: " + (System.currentTimeMillis() - time));
     }
 
-    public int chooseContainerSize(int spec, int desired, int min) {
+    private int chooseContainerSize(int spec, int desired, int min) {
         final int mode = View.MeasureSpec.getMode(spec);
         final int size = View.MeasureSpec.getSize(spec);
         switch (mode) {
@@ -150,9 +155,17 @@ public class ExTableLayoutManager extends RecyclerView.LayoutManager {
      */
     @Override
     public void onLayoutChildren(final RecyclerView.Recycler recycler, final RecyclerView.State state) {
+        long time = System.currentTimeMillis();
+        Log.d("LOG_TAG", "onLayoutChildren -- start");
+
         detachAndScrapAttachedViews(recycler);
         fillCeilInfo(recycler);
         final List<CeilInfo> ceilInfos = getCeilForLayout();
+        fill(recycler, ceilInfos);
+        Log.d("LOG_TAG", "onLayoutChildren -- end: " + (System.currentTimeMillis() - time));
+    }
+
+    private void fill(final RecyclerView.Recycler recycler, final List<CeilInfo> ceilInfos) {
         final int fixedColCount = mConfig.fixedColCount;
         final int fixedRowCount = mConfig.fixedRowCount;
         int left, top, right, bottom;
@@ -177,7 +190,8 @@ public class ExTableLayoutManager extends RecyclerView.LayoutManager {
                 bottom = ceilInfo.bottom;
             }
             setClipBounds(view, horizontalScrollable, verticalScrollable, left, top, right, bottom);
-            view.layout(left, top, right, bottom);
+            layoutDecoratedWithMargins(view, left, top, right, bottom);
+//            view.layout(left, top, right, bottom);
         }
     }
 
@@ -205,8 +219,8 @@ public class ExTableLayoutManager extends RecyclerView.LayoutManager {
         final int height = getHeight();
         final List<CeilInfo> ceilForLayout = new ArrayList<>(mCeilInfos.size());
         for (final CeilInfo ceilInfo : mCeilInfos) {
-            if ((ceilInfo.col <= mConfig.fixedColCount || (ceilInfo.right - mScrollX > -200 && ceilInfo.left - mScrollX < width + 200))
-                    && (ceilInfo.row <= mConfig.fixedRowCount || (ceilInfo.bottom - mScrollY > -200 && ceilInfo.top - mScrollY < height + 200))) {
+            if ((ceilInfo.col <= mConfig.fixedColCount || (ceilInfo.right - mScrollX > -10 && ceilInfo.left - mScrollX < width + 10))
+                    && (ceilInfo.row <= mConfig.fixedRowCount || (ceilInfo.bottom - mScrollY > -10 && ceilInfo.top - mScrollY < height + 10))) {
                 ceilForLayout.add(ceilInfo);
             }
         }
@@ -215,6 +229,8 @@ public class ExTableLayoutManager extends RecyclerView.LayoutManager {
 
     private void fillCeilInfo(final RecyclerView.Recycler recycler) {
         if (isCeilInfoDirty) {
+            long time = System.currentTimeMillis();
+            Log.d("LOG_TAG", "fillCeilInfo === start");
             isCeilInfoDirty = false;
             final TableConfig config = mConfig;
             mCeilInfos.clear();
@@ -280,18 +296,18 @@ public class ExTableLayoutManager extends RecyclerView.LayoutManager {
                 for (int i = 0; i < colSpan; i++) {
                     right += mMaxColWidths.get(col + i, 0);
                 }
-                right += (colSpan - 1) * 3;
+                right += (colSpan - 1) * mDividerSize;
                 int bottom = top;
                 for (int i = 0; i < rowSpan; i++) {
                     bottom += mMaxRowHeights.get(row + i, 0);
                 }
-                bottom += (rowSpan - 1) * 3;
+                bottom += (rowSpan - 1) * mDividerSize;
 
                 for (int i = 0; i < colSpan; i++) {
-                    yOffsets.put(col + i, bottom + 3);
+                    yOffsets.put(col + i, bottom + mDividerSize);
                 }
                 for (int i = 0; i < rowSpan; i++) {
-                    xOffsets.put(row + i, right + 3);
+                    xOffsets.put(row + i, right + mDividerSize);
                 }
                 ceilInfo.setLayoutPosition(left, top, right, bottom);
                 if (right > contentWidth) contentWidth = right;
@@ -302,11 +318,12 @@ public class ExTableLayoutManager extends RecyclerView.LayoutManager {
             mFixedContentWidth = 0;
             mFixedContentHeight = 0;
             for (int col = 0; col < mConfig.fixedColCount; col++) {
-                mFixedContentWidth += mMaxColWidths.get(col) + 3;
+                mFixedContentWidth += mMaxColWidths.get(col) + mDividerSize;
             }
             for (int row = 0; row < mConfig.fixedRowCount; row++) {
-                mFixedContentHeight += mMaxRowHeights.get(row) + 3;
+                mFixedContentHeight += mMaxRowHeights.get(row) + mDividerSize;
             }
+            Log.d("LOG_TAG", "fillCeilInfo === end: " + (System.currentTimeMillis() - time));
         }
     }
 
@@ -324,8 +341,31 @@ public class ExTableLayoutManager extends RecyclerView.LayoutManager {
         } else {
             consumed = - Math.min(Math.abs(dx), mScrollX);
         }
+
+        fillCeilInfo(recycler);
+
+        List<CeilInfo> ceilInfos = getCeilForRemove(consumed, 0);
+        for (final CeilInfo info : ceilInfos) {
+            View view = findViewByPosition(info.index);
+            if (view != null) {
+                detachAndScrapView(view, recycler);
+            }
+        }
         mScrollX += consumed;
-        onLayoutChildren(recycler, state);
+        final int childCount = getChildCount();
+        for (int i = 0; i < childCount; i++) {
+            final View view = getChildAt(i);
+            final int position = getPosition(view);
+            final int col = Utils.indexToCol(position);
+            final int row = Utils.indexToRow(position);
+            if (col >= mConfig.fixedColCount) {
+                view.offsetLeftAndRight(-consumed);
+                setClipBounds(view, col >= mConfig.fixedColCount, row >= mConfig.fixedRowCount, view.getLeft(), view.getTop(), view.getRight(), view.getBottom());
+            }
+        }
+//        offsetChildrenHorizontal(-consumed);
+        ceilInfos = getCeilForAdd(consumed, 0);
+        fill(recycler, ceilInfos);
         return consumed;
     }
 
@@ -338,9 +378,74 @@ public class ExTableLayoutManager extends RecyclerView.LayoutManager {
         } else {
             consumed = - Math.min(Math.abs(dy), mScrollY);
         }
+
+        fillCeilInfo(recycler);
+
+        List<CeilInfo> ceilInfos = getCeilForRemove(0, consumed);
+        for (final CeilInfo info : ceilInfos) {
+            View view = findViewByPosition(info.index);
+            if (view != null) {
+                detachAndScrapView(view, recycler);
+            }
+        }
         mScrollY += consumed;
-        onLayoutChildren(recycler, state);
+        final int childCount = getChildCount();
+        for (int i = 0; i < childCount; i++) {
+            final View view = getChildAt(i);
+            final int position = getPosition(view);
+            final int row = Utils.indexToRow(position);
+            final int col = Utils.indexToCol(position);
+            if (row >= mConfig.fixedRowCount) {
+                view.offsetTopAndBottom(-consumed);
+                setClipBounds(view, col >= mConfig.fixedColCount, row >= mConfig.fixedRowCount, view.getLeft(), view.getTop(), view.getRight(), view.getBottom());
+            }
+        }
+        //offsetChildrenVertical(-consumed);
+        ceilInfos = getCeilForAdd(0, consumed);
+        fill(recycler, ceilInfos);
         return consumed;
+    }
+
+    private List<CeilInfo> getCeilForRemove(final int consumedX, int consumedY) {
+        final int width = getWidth();
+        final int height = getHeight();
+        final List<CeilInfo> ceilForRemove = new ArrayList<>();
+        final int scrollX = mScrollX;
+        final int scrollY = mScrollY;
+        final int newScrollX = mScrollX + consumedX;
+        final int newScrollY = mScrollY + consumedY;
+
+        for (final CeilInfo ceilInfo : mCeilInfos) {
+            if ((ceilInfo.col <= mConfig.fixedColCount || (ceilInfo.right - scrollX > -10 && ceilInfo.left - scrollX < width + 10))
+                    && (ceilInfo.row <= mConfig.fixedRowCount || (ceilInfo.bottom - scrollY > -10 && ceilInfo.top - scrollY < height + 10))) {
+                if (!((ceilInfo.col <= mConfig.fixedColCount || (ceilInfo.right - newScrollX > -10 && ceilInfo.left - newScrollX < width + 10))
+                        && (ceilInfo.row <= mConfig.fixedRowCount || (ceilInfo.bottom - newScrollY > -10 && ceilInfo.top - newScrollY < height + 10)))) {
+                    ceilForRemove.add(ceilInfo);
+                }
+            }
+        }
+        return ceilForRemove;
+    }
+
+    private List<CeilInfo> getCeilForAdd(final int consumedX, int consumedY) {
+        final int width = getWidth();
+        final int height = getHeight();
+        final List<CeilInfo> ceilForAdd = new ArrayList<>();
+        final int scrollX = mScrollX - consumedX;
+        final int scrollY = mScrollY - consumedY;
+        final int newScrollX = mScrollX;
+        final int newScrollY = mScrollY;
+
+        for (final CeilInfo ceilInfo : mCeilInfos) {
+            if ((ceilInfo.col <= mConfig.fixedColCount || (ceilInfo.right - newScrollX > -10 && ceilInfo.left - newScrollX < width + 10))
+                    && (ceilInfo.row <= mConfig.fixedRowCount || (ceilInfo.bottom - newScrollY > -10 && ceilInfo.top - newScrollY < height + 10))) {
+            if (!((ceilInfo.col <= mConfig.fixedColCount || (ceilInfo.right - scrollX > -10 && ceilInfo.left - scrollX < width + 10))
+                    && (ceilInfo.row <= mConfig.fixedRowCount || (ceilInfo.bottom - scrollY > -10 && ceilInfo.top - scrollY < height + 10)))) {
+                    ceilForAdd.add(ceilInfo);
+                }
+            }
+        }
+        return ceilForAdd;
     }
 
     @Override
