@@ -8,25 +8,25 @@ import android.util.SparseArray;
  */
 public final class SpanSizeConfig {
 
-    final SparseArray<CeilSpan> mSpans;
+    final SparseArray<CellSpan> mSpans;
 
-    public CeilSpan getSpanSize(@IntRange(from = 0, to = Short.MAX_VALUE) int row,
+    public CellSpan getSpanSize(@IntRange(from = 0, to = Short.MAX_VALUE) int row,
                                 @IntRange(from = 0, to = Short.MAX_VALUE) int col) {
-        return mSpans.get(Utils.buildIndex(col, row), CeilSpan.DEFAULT);
+        return mSpans.get(Utils.buildIndex(col, row), CellSpan.DEFAULT);
     }
 
-    SpanSizeConfig(SparseArray<CeilSpan> spans) {
+    SpanSizeConfig(SparseArray<CellSpan> spans) {
         this.mSpans = spans;
     }
 
     public static final class Builder {
-        final SparseArray<CeilSpan> mSpans = new SparseArray<>(0);
+        final SparseArray<CellSpan> mSpans = new SparseArray<>(0);
 
         public Builder setSpan(@IntRange(from = 0, to = Short.MAX_VALUE)  int row,
                                @IntRange(from = 0, to = Short.MAX_VALUE)  int col,
                                int rowSpan, int colSpan) {
-            if (colSpan != CeilSpan.DEFAULT.colSpan || rowSpan != CeilSpan.DEFAULT.rowSpan) {
-                mSpans.put(Utils.buildIndex(col, row), new CeilSpan(rowSpan, colSpan));
+            if (colSpan != CellSpan.DEFAULT.colSpan || rowSpan != CellSpan.DEFAULT.rowSpan) {
+                mSpans.put(Utils.buildIndex(col, row), new CellSpan(rowSpan, colSpan));
             }
             return this;
         }

@@ -22,7 +22,7 @@ public class ExTableLayoutManager extends RecyclerView.LayoutManager {
     private TableConfig mConfig;
     private RecyclerView mRecyclerView;
 
-    List<CeilInfo> mCeilInfos = new ArrayList<>();
+    List<CellInfo> mCellInfos = new ArrayList<>();
     private SparseIntArray mMaxColWidths = new SparseIntArray();
     private SparseIntArray mMaxRowHeights = new SparseIntArray();
     private boolean isCeilInfoDirty = true;
@@ -160,34 +160,34 @@ public class ExTableLayoutManager extends RecyclerView.LayoutManager {
 
         detachAndScrapAttachedViews(recycler);
         fillCeilInfo(recycler);
-        final List<CeilInfo> ceilInfos = getCeilForLayout();
-        fill(recycler, ceilInfos);
+        final List<CellInfo> cellInfos = getCeilForLayout();
+        fill(recycler, cellInfos);
         Log.d("LOG_TAG", "onLayoutChildren -- end: " + (System.currentTimeMillis() - time));
     }
 
-    private void fill(final RecyclerView.Recycler recycler, final List<CeilInfo> ceilInfos) {
+    private void fill(final RecyclerView.Recycler recycler, final List<CellInfo> cellInfos) {
         final int fixedColCount = mConfig.fixedColCount;
         final int fixedRowCount = mConfig.fixedRowCount;
         int left, top, right, bottom;
-        for (final CeilInfo ceilInfo : ceilInfos) {
-            View view = recycler.getViewForPosition(ceilInfo.index);
+        for (final CellInfo cellInfo : cellInfos) {
+            View view = recycler.getViewForPosition(cellInfo.index);
             addView(view);
 //            measureChildWithMargins(view, 0, 0);
-            final boolean horizontalScrollable = ceilInfo.col >= fixedColCount;
+            final boolean horizontalScrollable = cellInfo.col >= fixedColCount;
             if (horizontalScrollable) {
-                left = ceilInfo.left - mScrollX;
-                right = ceilInfo.right - mScrollX;
+                left = cellInfo.left - mScrollX;
+                right = cellInfo.right - mScrollX;
             } else {
-                left = ceilInfo.left;
-                right = ceilInfo.right;
+                left = cellInfo.left;
+                right = cellInfo.right;
             }
-            final boolean verticalScrollable = ceilInfo.row >= fixedRowCount;
+            final boolean verticalScrollable = cellInfo.row >= fixedRowCount;
             if (verticalScrollable) {
-                top = ceilInfo.top - mScrollY;
-                bottom = ceilInfo.bottom - mScrollY;
+                top = cellInfo.top - mScrollY;
+                bottom = cellInfo.bottom - mScrollY;
             } else {
-                top = ceilInfo.top;
-                bottom = ceilInfo.bottom;
+                top = cellInfo.top;
+                bottom = cellInfo.bottom;
             }
             setClipBounds(view, horizontalScrollable, verticalScrollable, left, top, right, bottom);
             layoutDecoratedWithMargins(view, left, top, right, bottom);
@@ -205,23 +205,26 @@ public class ExTableLayoutManager extends RecyclerView.LayoutManager {
         if (verticalScrollable && top < mFixedContentHeight) {
             clipHeight = mFixedContentHeight - top;
         }
+        if (!verticalScrollable && horizontalScrollable && left < mFixedContentWidth) {
+            Log.d("LOG_TAG", "setClipBounds: l= " + left + ", r= " + right + ", cW = " + clipWidth);
+        }
         if (clipWidth == 0 && clipHeight == 0) {
             view.setClipBounds(null);
-        } else if (clipWidth > right || clipHeight > bottom) {
+        } else if (clipWidth >= right || clipHeight >= bottom) {
             view.setClipBounds(new Rect(0,0,0,0));
         } else {
             view.setClipBounds(new Rect(clipWidth, clipHeight, right - left, bottom - top));
         }
     }
 
-    private List<CeilInfo> getCeilForLayout() {
+    private List<CellInfo> getCeilForLayout() {
         final int width = getWidth();
         final int height = getHeight();
-        final List<CeilInfo> ceilForLayout = new ArrayList<>(mCeilInfos.size());
-        for (final CeilInfo ceilInfo : mCeilInfos) {
-            if ((ceilInfo.col <= mConfig.fixedColCount || (ceilInfo.right - mScrollX > -10 && ceilInfo.left - mScrollX < width + 10))
-                    && (ceilInfo.row <= mConfig.fixedRowCount || (ceilInfo.bottom - mScrollY > -10 && ceilInfo.top - mScrollY < height + 10))) {
-                ceilForLayout.add(ceilInfo);
+        final List<CellInfo> ceilForLayout = new ArrayList<>(mCellInfos.size());
+        for (final CellInfo cellInfo : mCellInfos) {
+            if ((cellInfo.col <= mConfig.fixedColCount || (cellInfo.right - mScrollX > -10 && cellInfo.left - mScrollX < width + 10))
+                    && (cellInfo.row <= mConfig.fixedRowCount || (cellInfo.bottom - mScrollY > -10 && cellInfo.top - mScrollY < height + 10))) {
+                ceilForLayout.add(cellInfo);
             }
         }
         return ceilForLayout;
@@ -229,15 +232,14 @@ public class ExTableLayoutManager extends RecyclerView.LayoutManager {
 
     private void fillCeilInfo(final RecyclerView.Recycler recycler) {
         if (isCeilInfoDirty) {
+            isCeilInfoDirty = false;
             long time = System.currentTimeMillis();
             Log.d("LOG_TAG", "fillCeilInfo === start");
-            isCeilInfoDirty = false;
             final TableConfig config = mConfig;
-            mCeilInfos.clear();
+            mCellInfos.clear();
             mMaxColWidths.clear();
             mMaxRowHeights.clear();
             SparseIntArray skipSpanned = new SparseIntArray();
-
             // find ceil and fill info
             for (int row = 0; row < config.rowCount; row++) {
                 int maxRowHeight = 0;
@@ -249,12 +251,21 @@ public class ExTableLayoutManager extends RecyclerView.LayoutManager {
                         col += skipCols;
                         continue;
                     }
-                    final View view = recycler.getViewForPosition(index);
-                    measureChildWithMargins(view, 0, 0);
-                    final int measuredWidth = view.getMeasuredWidth();
-                    final int measuredHeight = view.getMeasuredHeight();
+                    final int measuredWidth;
+                    final int measuredHeight;
+                    if (config.hasFixedCellSize && col > 0 && row > 0
+                            && col >= config.fixedColCount
+                            && row >= config.fixedRowCount){
+                        measuredWidth = mMaxColWidths.get(col);
+                        measuredHeight = mMaxRowHeights.get(row);
+                    } else {
+                        final View view = recycler.getViewForPosition(index);
+                        measureChildWithMargins(view, 0, 0);
+                        measuredWidth = view.getMeasuredWidth();
+                        measuredHeight = view.getMeasuredHeight();
+                    }
                     final int maxWidth = mMaxColWidths.get(col, 0);
-                    final CeilSpan spanSize = config.getSpanSize(index);
+                    final CellSpan spanSize = config.getSpanSize(index);
                     final int rowSpan = spanSize.rowSpan;
                     final int colSpan = spanSize.colSpan;
                     if (colSpan == 1 && measuredWidth > maxWidth) {
@@ -263,7 +274,7 @@ public class ExTableLayoutManager extends RecyclerView.LayoutManager {
                     if (rowSpan == 1 && measuredHeight > maxRowHeight) {
                         maxRowHeight = measuredHeight;
                     }
-                    mCeilInfos.add(new CeilInfo(index, row, col, colSpan, rowSpan));
+                    mCellInfos.add(new CellInfo(index, row, col, colSpan, rowSpan));
                     if (colSpan > 1 || rowSpan > 1) {
                         for (int c = 0; c < colSpan; c++) {
                             for (int r = 0; r < rowSpan; r++) {
@@ -277,18 +288,18 @@ public class ExTableLayoutManager extends RecyclerView.LayoutManager {
                 mMaxRowHeights.put(row, maxRowHeight);
             }
 
-            // calc ceil position
+            // calc cells position
             SparseIntArray xOffsets = new SparseIntArray();
             SparseIntArray yOffsets = new SparseIntArray();
 
             int contentWidth = 0;
             int contentHeight = 0;
 
-            for (final CeilInfo ceilInfo : mCeilInfos) {
-                final int row = ceilInfo.row;
-                final int col = ceilInfo.col;
-                final int rowSpan = ceilInfo.rowSpan;
-                final int colSpan = ceilInfo.colSpan;
+            for (final CellInfo cellInfo : mCellInfos) {
+                final int row = cellInfo.row;
+                final int col = cellInfo.col;
+                final int rowSpan = cellInfo.rowSpan;
+                final int colSpan = cellInfo.colSpan;
 
                 final int left = xOffsets.get(row);
                 final int top = yOffsets.get(col);
@@ -309,7 +320,7 @@ public class ExTableLayoutManager extends RecyclerView.LayoutManager {
                 for (int i = 0; i < rowSpan; i++) {
                     xOffsets.put(row + i, right + mDividerSize);
                 }
-                ceilInfo.setLayoutPosition(left, top, right, bottom);
+                cellInfo.setLayoutPosition(left, top, right, bottom);
                 if (right > contentWidth) contentWidth = right;
                 if (bottom > contentHeight) contentHeight = bottom;
             }
@@ -337,15 +348,15 @@ public class ExTableLayoutManager extends RecyclerView.LayoutManager {
         if (dx == 0) return 0;
         int consumed = 0;
         if (dx > 0) {
-            consumed = Math.max(Math.min(dx, mContentWidth - getWidth() - mScrollX - dx), 0);
+            consumed = Math.max(Math.min(dx, mContentWidth - getWidth() - mScrollX), 0);
         } else {
             consumed = - Math.min(Math.abs(dx), mScrollX);
         }
 
         fillCeilInfo(recycler);
 
-        List<CeilInfo> ceilInfos = getCeilForRemove(consumed, 0);
-        for (final CeilInfo info : ceilInfos) {
+        List<CellInfo> cellInfos = getCeilForRemove(consumed, 0);
+        for (final CellInfo info : cellInfos) {
             View view = findViewByPosition(info.index);
             if (view != null) {
                 detachAndScrapView(view, recycler);
@@ -364,8 +375,8 @@ public class ExTableLayoutManager extends RecyclerView.LayoutManager {
             }
         }
 //        offsetChildrenHorizontal(-consumed);
-        ceilInfos = getCeilForAdd(consumed, 0);
-        fill(recycler, ceilInfos);
+        cellInfos = getCeilForAdd(consumed, 0);
+        fill(recycler, cellInfos);
         return consumed;
     }
 
@@ -374,15 +385,15 @@ public class ExTableLayoutManager extends RecyclerView.LayoutManager {
         if (dy == 0) return 0;
         int consumed = 0;
         if (dy > 0) {
-            consumed = Math.max(Math.min(dy, mContentHeight - getHeight() - mScrollY - dy), 0);
+            consumed = Math.max(Math.min(dy, mContentHeight - getHeight() - mScrollY), 0);
         } else {
             consumed = - Math.min(Math.abs(dy), mScrollY);
         }
 
         fillCeilInfo(recycler);
 
-        List<CeilInfo> ceilInfos = getCeilForRemove(0, consumed);
-        for (final CeilInfo info : ceilInfos) {
+        List<CellInfo> cellInfos = getCeilForRemove(0, consumed);
+        for (final CellInfo info : cellInfos) {
             View view = findViewByPosition(info.index);
             if (view != null) {
                 detachAndScrapView(view, recycler);
@@ -401,47 +412,47 @@ public class ExTableLayoutManager extends RecyclerView.LayoutManager {
             }
         }
         //offsetChildrenVertical(-consumed);
-        ceilInfos = getCeilForAdd(0, consumed);
-        fill(recycler, ceilInfos);
+        cellInfos = getCeilForAdd(0, consumed);
+        fill(recycler, cellInfos);
         return consumed;
     }
 
-    private List<CeilInfo> getCeilForRemove(final int consumedX, int consumedY) {
+    private List<CellInfo> getCeilForRemove(final int consumedX, int consumedY) {
         final int width = getWidth();
         final int height = getHeight();
-        final List<CeilInfo> ceilForRemove = new ArrayList<>();
+        final List<CellInfo> ceilForRemove = new ArrayList<>();
         final int scrollX = mScrollX;
         final int scrollY = mScrollY;
         final int newScrollX = mScrollX + consumedX;
         final int newScrollY = mScrollY + consumedY;
 
-        for (final CeilInfo ceilInfo : mCeilInfos) {
-            if ((ceilInfo.col <= mConfig.fixedColCount || (ceilInfo.right - scrollX > -10 && ceilInfo.left - scrollX < width + 10))
-                    && (ceilInfo.row <= mConfig.fixedRowCount || (ceilInfo.bottom - scrollY > -10 && ceilInfo.top - scrollY < height + 10))) {
-                if (!((ceilInfo.col <= mConfig.fixedColCount || (ceilInfo.right - newScrollX > -10 && ceilInfo.left - newScrollX < width + 10))
-                        && (ceilInfo.row <= mConfig.fixedRowCount || (ceilInfo.bottom - newScrollY > -10 && ceilInfo.top - newScrollY < height + 10)))) {
-                    ceilForRemove.add(ceilInfo);
+        for (final CellInfo cellInfo : mCellInfos) {
+            if ((cellInfo.col <= mConfig.fixedColCount || (cellInfo.right - scrollX > -10 && cellInfo.left - scrollX < width + 10))
+                    && (cellInfo.row <= mConfig.fixedRowCount || (cellInfo.bottom - scrollY > -10 && cellInfo.top - scrollY < height + 10))) {
+                if (!((cellInfo.col <= mConfig.fixedColCount || (cellInfo.right - newScrollX > -10 && cellInfo.left - newScrollX < width + 10))
+                        && (cellInfo.row <= mConfig.fixedRowCount || (cellInfo.bottom - newScrollY > -10 && cellInfo.top - newScrollY < height + 10)))) {
+                    ceilForRemove.add(cellInfo);
                 }
             }
         }
         return ceilForRemove;
     }
 
-    private List<CeilInfo> getCeilForAdd(final int consumedX, int consumedY) {
+    private List<CellInfo> getCeilForAdd(final int consumedX, int consumedY) {
         final int width = getWidth();
         final int height = getHeight();
-        final List<CeilInfo> ceilForAdd = new ArrayList<>();
+        final List<CellInfo> ceilForAdd = new ArrayList<>();
         final int scrollX = mScrollX - consumedX;
         final int scrollY = mScrollY - consumedY;
         final int newScrollX = mScrollX;
         final int newScrollY = mScrollY;
 
-        for (final CeilInfo ceilInfo : mCeilInfos) {
-            if ((ceilInfo.col <= mConfig.fixedColCount || (ceilInfo.right - newScrollX > -10 && ceilInfo.left - newScrollX < width + 10))
-                    && (ceilInfo.row <= mConfig.fixedRowCount || (ceilInfo.bottom - newScrollY > -10 && ceilInfo.top - newScrollY < height + 10))) {
-            if (!((ceilInfo.col <= mConfig.fixedColCount || (ceilInfo.right - scrollX > -10 && ceilInfo.left - scrollX < width + 10))
-                    && (ceilInfo.row <= mConfig.fixedRowCount || (ceilInfo.bottom - scrollY > -10 && ceilInfo.top - scrollY < height + 10)))) {
-                    ceilForAdd.add(ceilInfo);
+        for (final CellInfo cellInfo : mCellInfos) {
+            if ((cellInfo.col <= mConfig.fixedColCount || (cellInfo.right - newScrollX > -10 && cellInfo.left - newScrollX < width + 10))
+                    && (cellInfo.row <= mConfig.fixedRowCount || (cellInfo.bottom - newScrollY > -10 && cellInfo.top - newScrollY < height + 10))) {
+            if (!((cellInfo.col <= mConfig.fixedColCount || (cellInfo.right - scrollX > -10 && cellInfo.left - scrollX < width + 10))
+                    && (cellInfo.row <= mConfig.fixedRowCount || (cellInfo.bottom - scrollY > -10 && cellInfo.top - scrollY < height + 10)))) {
+                    ceilForAdd.add(cellInfo);
                 }
             }
         }
@@ -493,7 +504,7 @@ public class ExTableLayoutManager extends RecyclerView.LayoutManager {
         isCeilInfoDirty = true;
     }
 
-    private static class CeilInfo {
+    private static class CellInfo {
         int row;
         int col;
         int index;
@@ -504,7 +515,7 @@ public class ExTableLayoutManager extends RecyclerView.LayoutManager {
         int right;
         int bottom;
 
-        public CeilInfo(final int index, final int row, final int col, final int colSpan, final int rowSpan) {
+        public CellInfo(final int index, final int row, final int col, final int colSpan, final int rowSpan) {
             this.index = index;
             this.row = row;
             this.col = col;

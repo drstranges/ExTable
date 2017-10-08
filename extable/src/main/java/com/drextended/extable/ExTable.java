@@ -25,7 +25,7 @@ public class ExTable extends LinearLayout {
     private ExTableLayoutManager mLayoutManager;
     private ExTableAdapter mAdapter;
     private TableConfig mConfig;
-    private ExTableAdapter.CeilData mCeilData = new ExTableAdapter.CeilData();
+    private ExTableAdapter.CellsData mCellsData = new ExTableAdapter.CellsData();
 
     public ExTable(final Context context) {
         super(context);
@@ -59,9 +59,9 @@ public class ExTable extends LinearLayout {
         recreateTable();
     }
 
-    public void setCeilData(ExTableAdapter.CeilData ceilData) {
-        mCeilData = ceilData;
-        mAdapter.setCeilData(ceilData);
+    public void setCellsData(ExTableAdapter.CellsData cellsData) {
+        mCellsData = cellsData;
+        mAdapter.setCellsData(cellsData);
         mAdapter.notifyDataSetChanged();
     }
 
@@ -70,31 +70,31 @@ public class ExTable extends LinearLayout {
         mAdapter = new ExTableAdapter();
         mLayoutManager.setConfig(mConfig);
         mAdapter.setConfig(mConfig);
-        mAdapter.setCeilData(mCeilData);
+        mAdapter.setCellsData(mCellsData);
         mRecyclerView.setLayoutManager(mLayoutManager);
         mRecyclerView.setAdapter(mAdapter);
     }
 
-    public static class ExTableAdapter extends RecyclerView.Adapter<CeilViewHolder>{
+    public static class ExTableAdapter extends RecyclerView.Adapter<CellViewHolder>{
         private TableConfig mConfig;
-        private CeilData mCeilData;
+        private CellsData mCellsData;
 
         @Override
-        public CeilViewHolder onCreateViewHolder(final ViewGroup parent, final int viewType) {
-            final ItemDelegate itemDelegat = mConfig.getItemDelegat(viewType);
-            return itemDelegat.onCreateViewHolder(parent);
+        public CellViewHolder onCreateViewHolder(final ViewGroup parent, final int viewType) {
+            final ItemDelegate itemDelegate = mConfig.getItemDelegate(viewType);
+            return itemDelegate.onCreateViewHolder(parent);
         }
 
         @Override
-        public void onBindViewHolder(final CeilViewHolder holder, final int position) {
-            final CeilData.Ceil ceil = mCeilData.getCeil(position);
-            final ItemDelegate itemDelegat = mConfig.getItemDelegat(ceil.type);
-            itemDelegat.onBindViewHolder(holder, position, ceil);
+        public void onBindViewHolder(final CellViewHolder holder, final int position) {
+            final CellsData.Cell cell = mCellsData.getCell(position);
+            final ItemDelegate itemDelegate = mConfig.getItemDelegate(cell.type);
+            itemDelegate.onBindViewHolder(holder, position, cell);
         }
 
         @Override
         public int getItemViewType(final int position) {
-            return mCeilData.getType(position);
+            return mCellsData.getType(position);
         }
 
         @Override
@@ -102,8 +102,8 @@ public class ExTable extends LinearLayout {
             return mConfig == null ? 0 : Integer.MAX_VALUE;//mConfig.colCount * mConfig.rowCount;
         }
 
-        public void setCeilData(final CeilData ceilData) {
-            mCeilData = ceilData;
+        public void setCellsData(final CellsData cellsData) {
+            mCellsData = cellsData;
         }
 
         public void setConfig(final TableConfig config) {
@@ -111,53 +111,54 @@ public class ExTable extends LinearLayout {
         }
 
         public interface ItemDelegate {
-            CeilViewHolder onCreateViewHolder(final ViewGroup parent);
-            void onBindViewHolder(final CeilViewHolder holder, final int position, final CeilData.Ceil ceil);
+            CellViewHolder onCreateViewHolder(final ViewGroup parent);
+            void onBindViewHolder(final CellViewHolder holder, final int position, final CellsData.Cell cell);
 
             ItemDelegate DEFAULT = new ItemDelegate() {
                 @Override
-                public CeilViewHolder onCreateViewHolder(final ViewGroup parent) {
+                public CellViewHolder onCreateViewHolder(final ViewGroup parent) {
                     final TextView itemView = new TextView(parent.getContext());
                     itemView.setGravity(Gravity.CENTER);
                     itemView.setMinWidth(100);
                     itemView.setMinHeight(50);
-                    return new CeilViewHolder(itemView);
+                    itemView.setPadding(10, 5, 10, 5);
+                    return new CellViewHolder(itemView);
                 }
 
                 @Override
-                public void onBindViewHolder(final CeilViewHolder holder, final int position, final CeilData.Ceil ceil) {
-                    holder.itemView.setBackgroundColor(ceil.color);
-                    ((TextView) holder.itemView).setText(ceil.value == null ? null : String.valueOf(ceil.value));
+                public void onBindViewHolder(final CellViewHolder holder, final int position, final CellsData.Cell cell) {
+                    holder.itemView.setBackgroundColor(cell.color);
+                    ((TextView) holder.itemView).setText(cell.value == null ? null : String.valueOf(cell.value));
                 }
             };
         }
 
-        public static class CeilData {
-            final LongSparseArray<Ceil> mCeils = new LongSparseArray<>();
+        public static class CellsData {
+            final LongSparseArray<Cell> mCells = new LongSparseArray<>();
 
-            public Ceil getCeil(final int index) {
-                return mCeils.get(index, Ceil.DEFAULT);
+            public Cell getCell(final int index) {
+                return mCells.get(index, Cell.DEFAULT);
             }
 
-            public void addCeil(@IntRange(from = 0, to = Short.MAX_VALUE) int col,
+            public void addCell(@IntRange(from = 0, to = Short.MAX_VALUE) int col,
                                 @IntRange(from = 0, to = Short.MAX_VALUE) int row,
-                                Ceil ceil) {
-                mCeils.put(Utils.buildIndex(col, row), ceil);
+                                Cell cell) {
+                mCells.put(Utils.buildIndex(col, row), cell);
             }
 
             public int getType(final int index) {
-                return getCeil(index).type;
+                return getCell(index).type;
             }
 
-            public static class Ceil {
+            public static class Cell {
                 public static final int TYPE_DEFAULT = 0;
-                public static final Ceil DEFAULT = new Ceil(TYPE_DEFAULT, null, Color.GRAY);
+                public static final Cell DEFAULT = new Cell(TYPE_DEFAULT, null, Color.GRAY);
 
                 public final Object value;
                 public final int type;
                 public final int color;
 
-                public Ceil(final int type, final Object value, final int color) {
+                public Cell(final int type, final Object value, final int color) {
                     this.type = type;
                     this.value = value;
                     this.color = color;
@@ -166,8 +167,8 @@ public class ExTable extends LinearLayout {
         }
     }
 
-    public static class CeilViewHolder extends RecyclerView.ViewHolder {
-        public CeilViewHolder(final View itemView) {
+    public static class CellViewHolder extends RecyclerView.ViewHolder {
+        public CellViewHolder(final View itemView) {
             super(itemView);
         }
     }

@@ -12,15 +12,17 @@ public final class TableConfig {
     public final int rowCount;
     public final int fixedColCount;
     public final int fixedRowCount;
-    final SparseArray<CeilSpan> mSpans;
+    public final boolean hasFixedCellSize;
+    final SparseArray<CellSpan> mSpans;
     final SparseArray<ExTable.ExTableAdapter.ItemDelegate> mCeilViewDelegates;
 
     TableConfig(@IntRange(from = 0, to = Short.MAX_VALUE) final int colCount,
                 @IntRange(from = 0, to = Short.MAX_VALUE) final int rowCount,
                 @IntRange(from = 0) final int fixedColCount,
                 @IntRange(from = 0) final int fixedRowCount,
-                final SparseArray<CeilSpan> spans,
+                final boolean hasFixedCellSize, final SparseArray<CellSpan> spans,
                 final SparseArray<ExTable.ExTableAdapter.ItemDelegate> ceilViewDelegates) throws IllegalArgumentException {
+        this.hasFixedCellSize = hasFixedCellSize;
         mCeilViewDelegates = ceilViewDelegates;
         assertParam(colCount >= 0 && colCount <= Short.MAX_VALUE, "Column count must be >= 0 and <= 32767");
         assertParam(rowCount >= 0 && rowCount <= Short.MAX_VALUE, "Row count must be >= 0 and <= 32767");
@@ -37,16 +39,16 @@ public final class TableConfig {
         if (!valid) throw new IllegalArgumentException(message);
     }
 
-    public CeilSpan getSpanSize(@IntRange(from = 0, to = Short.MAX_VALUE) int row,
+    public CellSpan getSpanSize(@IntRange(from = 0, to = Short.MAX_VALUE) int row,
                                 @IntRange(from = 0, to = Short.MAX_VALUE) int col) {
-        return mSpans.get(Utils.buildIndex(col, row), CeilSpan.DEFAULT);
+        return mSpans.get(Utils.buildIndex(col, row), CellSpan.DEFAULT);
     }
 
-    public CeilSpan getSpanSize(int index) {
-        return mSpans.get(index, CeilSpan.DEFAULT);
+    public CellSpan getSpanSize(int index) {
+        return mSpans.get(index, CellSpan.DEFAULT);
     }
 
-    public ExTable.ExTableAdapter.ItemDelegate getItemDelegat(final int type) {
+    public ExTable.ExTableAdapter.ItemDelegate getItemDelegate(final int type) {
         return mCeilViewDelegates.get(type, ExTable.ExTableAdapter.ItemDelegate.DEFAULT);
     }
 
@@ -56,7 +58,8 @@ public final class TableConfig {
         int mRowCount = 0;
         int mFixedColCount = 0;
         int mFixedRowCount = 0;
-        final SparseArray<CeilSpan> mSpans;
+        boolean mHasFixedCellSize = true;
+        final SparseArray<CellSpan> mSpans;
         final SparseArray<ExTable.ExTableAdapter.ItemDelegate> mCeilViewDelegates;
 
         public Builder() {
@@ -93,11 +96,16 @@ public final class TableConfig {
             return this;
         }
 
+        public Builder setHasFixedCellSize(boolean hasFixedCellSize) {
+            mHasFixedCellSize = hasFixedCellSize;
+            return this;
+        }
+
         public Builder setSpan(@IntRange(from = 0, to = Short.MAX_VALUE) int col,
                                @IntRange(from = 0, to = Short.MAX_VALUE) int row,
                                int colSpan, int rowSpan) {
-            if (colSpan != CeilSpan.DEFAULT.colSpan || rowSpan != CeilSpan.DEFAULT.rowSpan) {
-                mSpans.put(Utils.buildIndex((int)col, (int)row), new CeilSpan(rowSpan, colSpan));
+            if (colSpan != CellSpan.DEFAULT.colSpan || rowSpan != CellSpan.DEFAULT.rowSpan) {
+                mSpans.put(Utils.buildIndex((int)col, (int)row), new CellSpan(rowSpan, colSpan));
             }
             return this;
         }
@@ -112,7 +120,7 @@ public final class TableConfig {
          * @throws IllegalArgumentException if parameters is not valid.
          */
         public TableConfig build() throws IllegalArgumentException {
-            return new TableConfig(mColCount, mRowCount, mFixedColCount, mFixedRowCount, mSpans.clone(), mCeilViewDelegates);
+            return new TableConfig(mColCount, mRowCount, mFixedColCount, mFixedRowCount, mHasFixedCellSize, mSpans.clone(), mCeilViewDelegates);
         }
     }
 }
